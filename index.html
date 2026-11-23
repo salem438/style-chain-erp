@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOGUE ERP | نظام إدارة سلسلة محلات الملابس ونقاط البيع</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- JsBarcode -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Thermal Receipt Print Styles */
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm;
+                padding: 5mm;
+                background: white;
+                color: black;
+            }
+            .no-print { display: none !important; }
+        }
+    </style>
+    <!-- PWA / Standalone Mobile App Support -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="STYLE CHAIN ERP">
+    <link id="pwa-manifest-link" rel="manifest">
+</head>
+<body class="text-slate-800 antialiased">
+
+    <!-- Top Navigation & Role Switcher Bar -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
+    <!-- PWA App Install Top Banner -->
+    <div id="pwa-header-banner" class="bg-gradient-to-l from-indigo-600 via-indigo-700 to-purple-700 text-white border-b border-indigo-500/40 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shrink-0 border border-white/20">
+                    <i class="fa-solid fa-mobile-screen-button text-sm text-white"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-xs sm:text-sm font-extrabold leading-tight truncate">ثبّت تطبيق STYLE CHAIN ERP على جهازك</p>
+                    <p class="text-[10px] sm:text-[11px] text-indigo-100 truncate">وصول سريع من الشاشة الرئيسية وتشغيل بدون إنترنت</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="triggerPWAInstall()" class="bg-white hover:bg-indigo-50 text-indigo-700 font-extrabold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95">
+                    <i class="fa-solid fa-download"></i> <span>تثبيت الآن</span>
+                </button>
+                <button type="button" onclick="dismissPWABanner()" title="إخفاء البانر" class="text-indigo-200 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between py-3 gap-3">
+                <!-- Brand Logo -->
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 p-2 rounded-xl shadow-md">
+                        <i class="fa-solid fa-shirt text-xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-extrabold tracking-wide leading-none">STYLE CHAIN <span class="text-indigo-400">ERP</span></h1>
+                        <span class="text-xs text-slate-400">إدارة الفروع والمخازن ونقاط البيع</span>
+                    </div>
+                </div>
+
+                <!-- Role Switcher Tabs (Quick Experience) -->
+                <div class="flex flex-wrap items-center bg-slate-800 p-1 rounded-xl border border-slate-700 gap-1" id="role-tabs">
+                    <button onclick="switchRole('admin')" data-role="admin" class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow">
+                        <i class="fa-solid fa-crown"></i> الأدمن العام
+                    </button>
+                    <button onclick="switchRole('pos')" data-role="pos" class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-300 hover:bg-slate-700">
+                        <i class="fa-solid fa-cash-register"></i> نقطة البيع (الكاشير)
+                    </button>
+                    <button onclick="switchRole('warehouse')" data-role="warehouse" class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-300 hover:bg-slate-700">
+                        <i class="fa-solid fa-boxes-stacked"></i> إدارة المخازن
+                    </button>
+                    <button onclick="switchRole('accounting')" data-role="accounting" class="role-btn px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-300 hover:bg-slate-700">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> الحسابات والخزينة
+                    </button>
+                </div>
+
+                <!-- Branch Selector & Reset -->
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5">
+                        <i class="fa-solid fa-store text-indigo-400 ml-2 text-sm"></i>
+                        <select id="global-branch-select" onchange="changeCurrentBranch(this.value)" class="bg-transparent text-xs sm:text-sm font-bold text-white focus:outline-none cursor-pointer">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                    <button id="pwa-install-btn" type="button" onclick="triggerPWAInstall()" title="تثبيت السيستم كتطبيق على الهاتف" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-download"></i> <span>تثبيت التطبيق</span>
+                    </button>
+                    <span id="network-status-badge" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold border bg-emerald-950/80 text-emerald-400 border-emerald-800/60">
+                        <i class="fa-solid fa-wifi"></i> <span>متصل</span>
+                    </span>
+                    <button onclick="confirmResetData()" title="إعادة ضبط البيانات التجريبية" class="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white p-2 rounded-xl border border-slate-700 transition text-xs">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 left-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Active Logged-In User Badge Bar -->
+    <div id="active-user-bar" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 no-print">
+        <div class="bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 text-xs">
+                <span class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-user-shield"></i>
+                </span>
+                <div>
+                    <span class="text-slate-500">المستخدم الحالي:</span>
+                    <strong id="auth-current-user-name" class="text-slate-900 font-extrabold mx-1">محمود الشناوي</strong>
+                    <span id="auth-current-user-role-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-700">أدمن عام</span>
+                    <span id="auth-current-user-branch" class="text-[11px] text-slate-500 mr-1"></span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openLoginModal()" class="bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-right-to-bracket"></i> تبديل المستخدم
+                </button>
+                <button type="button" onclick="logoutUser()" class="bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: User Login & Role Permissions -->
+    <div id="modal-login" class="fixed inset-0 bg-slate-950/95 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow">
+                        <i class="fa-solid fa-lock text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-slate-900">تسجيل الدخول إلى STYLE CHAIN ERP</h3>
+                        <p class="text-[11px] text-slate-500">الدخول بحساب الموظف وتطبيق الصلاحيات والفرع تلقائياً</p>
+                    </div>
+                </div>
+                <button type="button" id="close-login-modal-btn" onclick="closeModal('modal-login')" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Quick Demo Account Chips -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1.5">دخول سريع بحسابات تجريبية (أو اكتب بياناتك بالأسفل):</label>
+                <div id="login-quick-accounts" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <form onsubmit="handleUserLogin(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم المستخدم أو البريد / الكود *</label>
+                    <input type="text" id="login-username" required placeholder="مثال: محمود الشناوي أو أحمد سامي" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">كلمة المرور أو رمز الدخول (PIN) *</label>
+                    <input type="password" id="login-password" required placeholder="أدخل كلمة المرور أو PIN" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-2.5 text-[11px] text-indigo-900 leading-relaxed">
+                    <strong>كلمات المرور الافتراضية للحسابات التجريبية:</strong>
+                    الأدمن <code class="font-mono font-bold">1234</code> • الكاشير <code class="font-mono font-bold">1111</code> • المخازن <code class="font-mono font-bold">2222</code> • الحسابات/المدير <code class="font-mono font-bold">3333</code>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 rounded-xl shadow-lg shadow-indigo-200 transition text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ===================================================================== -->
+        <!-- 1. SUPER ADMIN VIEW                                                   -->
+        <!-- ===================================================================== -->
+        <section id="view-admin" class="space-y-6">
+            <!-- Top KPIs -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="admin-kpis">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Charts & Branch Performance -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-indigo-600"></i> مقارنة مبيعات وأرباح الفروع (ج.م)
+                        </h2>
+                        <span class="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full font-bold">محدث لحظياً</span>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="branchSalesChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Quick Summary / Top Selling -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-fire text-amber-500"></i> الأكثر مبيعاً في السلسلة
+                        </h2>
+                        <div id="top-products-list" class="space-y-3">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex justify-between">
+                        <span>حالة الربط السحابي:</span>
+                        <span class="text-emerald-600 font-bold"><i class="fa-solid fa-circle-check"></i> متصل بجميع الفروع</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branches Management & Staff Accounts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Branches Table -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-code-branch text-indigo-600"></i> إدارة الفروع والمخازن
+                        </h3>
+                        <button onclick="openModal('modal-add-branch')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1">
+                            <i class="fa-solid fa-plus"></i> إضافة فرع
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-sm">
+                            <thead class="bg-slate-50 text-slate-600 border-b">
+                                <tr>
+                                    <th class="py-2.5 px-3">الفرع</th>
+                                    <th class="py-2.5 px-3">النوع</th>
+                                    <th class="py-2.5 px-3">المدير</th>
+                                    <th class="py-2.5 px-3">المبيعات</th>
+                                    <th class="py-2.5 px-3">الحالة</th>
+                                    <th class="py-2.5 px-3">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-branches-table" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Users & Permissions Table -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-users-gear text-indigo-600"></i> حسابات الموظفين والصلاحيات
+                        </h3>
+                        <button onclick="openModal('modal-add-user')" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1">
+                            <i class="fa-solid fa-user-plus"></i> إضافة حساب
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-sm">
+                            <thead class="bg-slate-50 text-slate-600 border-b">
+                                <tr>
+                                    <th class="py-2.5 px-3">الموظف</th>
+                                    <th class="py-2.5 px-3">الدور الوظيفي</th>
+                                    <th class="py-2.5 px-3">الفرع التابع له</th>
+                                    <th class="py-2.5 px-3">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-table" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- 2. POS CASHIER VIEW                                                   -->
+        <!-- ===================================================================== -->
+        <section id="view-pos" class="hidden">
+            <!-- Branch Warning if Main Warehouse is selected -->
+            <div id="pos-warehouse-alert" class="hidden bg-amber-50 border border-amber-300 text-amber-800 p-4 rounded-2xl mb-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl text-amber-500"></i>
+                    <div>
+                        <p class="font-bold text-sm">أنت حالياً على "المخزن الرئيسي"!</p>
+                        <p class="text-xs">يفضل اختيار أحد فروع البيع (مدينة نصر، المهندسين، الإسكندرية) من القائمة العلوية لإجراء عمليات البيع.</p>
+                    </div>
+                </div>
+                <button onclick="changeCurrentBranch('br-nasr')" class="bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-xl">التبديل لفرع مدينة نصر</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left/Main Side: Products & Barcode Scanner (7 Cols) -->
+                <div class="lg:col-span-7 space-y-4">
+                    <!-- Search, Barcode & History Bar -->
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+                        <div class="flex flex-wrap gap-2">
+                            <div class="relative flex-1 min-w-[220px]">
+                                <i class="fa-solid fa-barcode absolute right-3.5 top-3.5 text-slate-400"></i>
+                                <input type="text" id="pos-search-input" onkeyup="handlePosSearch(event)" placeholder="امسح الباركود (Enter) أو ابحث باسم الموديل..." class="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold">
+                            </div>
+                            <button onclick="openInvoicesHistoryModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2">
+                                <i class="fa-solid fa-rotate-left text-rose-600"></i> فواتير الفرع / مرتجع
+                            </button>
+                        </div>
+
+                        <!-- Category Filters -->
+                        <div class="flex items-center gap-2 overflow-x-auto pb-1" id="pos-categories">
+                            <button onclick="filterPosCategory('all')" class="pos-cat-btn active bg-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">الكل</button>
+                            <button onclick="filterPosCategory('رجالي')" class="pos-cat-btn bg-slate-100 text-slate-600 hover:bg-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">رجالي</button>
+                            <button onclick="filterPosCategory('حريمي')" class="pos-cat-btn bg-slate-100 text-slate-600 hover:bg-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">حريمي</button>
+                            <button onclick="filterPosCategory('أطفالي')" class="pos-cat-btn bg-slate-100 text-slate-600 hover:bg-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">أطفالي</button>
+                            <button onclick="filterPosCategory('أحذية')" class="pos-cat-btn bg-slate-100 text-slate-600 hover:bg-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">أحذية وإكسسوار</button>
+                        </div>
+                    </div>
+
+                    <!-- Products Grid -->
+                    <div id="pos-products-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5 max-h-[680px] overflow-y-auto pb-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Right Side: Active Cart & Checkout (5 Cols) -->
+                <div class="lg:col-span-5">
+                    <div class="bg-white rounded-2xl shadow-md border border-slate-200 flex flex-col h-full sticky top-20">
+                        <!-- Cart Header -->
+                        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-2xl">
+                            <div>
+                                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                    <i class="fa-solid fa-bag-shopping text-indigo-600"></i> فاتورة بيع جديدة
+                                </h3>
+                                <span class="text-xs text-slate-500" id="pos-current-branch-label">فرع مدينة نصر</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="holdCurrentInvoice()" class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-pause"></i> تعليق
+                                </button>
+                                <button onclick="openHeldInvoicesModal()" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 relative">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> معلقة (<span id="held-bills-count">0</span>)
+                                </button>
+                                <button onclick="clearCart()" class="text-xs text-rose-600 hover:underline font-bold">تفريغ</button>
+                            </div>
+                        </div>
+
+                        <!-- Cart Items List -->
+                        <div id="pos-cart-items" class="p-4 flex-1 space-y-2.5 max-h-[340px] overflow-y-auto">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <!-- Cart Totals & Payment -->
+                        <div class="p-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl space-y-3">
+                            <!-- Customer Details & Discount (Stacked cleanly on mobile, balanced layout) -->
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-2.5">
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+                                        <i class="fa-solid fa-user text-indigo-500 text-[10px]"></i> اسم العميل
+                                    </label>
+                                    <input type="text" id="pos-customer-name" placeholder="مثال: محمد أحمد (عميل نقدي)" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+                                        <i class="fa-solid fa-location-dot text-indigo-500 text-[10px]"></i> عنوان العميل (للتوصيل / الفاتورة)
+                                    </label>
+                                    <input type="text" id="pos-customer-address" placeholder="الحي / الشارع / المدينة..." class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                    <div>
+                                        <label class="text-[11px] font-bold text-slate-600 flex items-center gap-1.5 mb-1">
+                                            <i class="fa-solid fa-phone text-indigo-500 text-[10px]"></i> رقم الهاتف (اختياري)
+                                        </label>
+                                        <input type="tel" id="pos-customer-phone" placeholder="010xxxxxxxx" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                                    </div>
+                                    <div>
+                                        <label class="text-[11px] font-bold text-slate-600 flex items-center justify-between gap-1 mb-1">
+                                            <span class="flex items-center gap-1"><i class="fa-solid fa-tag text-emerald-600 text-[10px]"></i> خصم إضافي (ج.م)</span>
+                                        </label>
+                                        <input type="number" id="pos-discount-input" value="0" min="0" oninput="renderCart()" class="w-full px-3 py-2 bg-emerald-50/50 border border-slate-300 rounded-xl text-xs font-extrabold text-emerald-700 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                                        <div class="flex flex-wrap gap-1 mt-1.5">
+                                            <button type="button" onclick="applyQuickDiscount(5, 'percent')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 rounded-lg text-[10px] font-bold transition">5%</button>
+                                            <button type="button" onclick="applyQuickDiscount(10, 'percent')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 rounded-lg text-[10px] font-bold transition">10%</button>
+                                            <button type="button" onclick="applyQuickDiscount(50, 'fixed')" class="px-2 py-0.5 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 rounded-lg text-[10px] font-bold transition">50 ج.م</button>
+                                            <button type="button" onclick="applyQuickDiscount(0, 'fixed')" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[10px] font-bold transition">إلغاء</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Payment Method -->
+                            <div>
+                                <label class="text-[11px] font-bold text-slate-500 block mb-1">طريقة الدفع</label>
+                                <div class="grid grid-cols-3 gap-2" id="payment-methods">
+                                    <button type="button" onclick="selectPaymentMethod('كاش (Cash)')" data-pay="كاش (Cash)" class="pay-btn bg-indigo-600 text-white py-1.5 rounded-xl text-xs font-bold border border-indigo-600">
+                                        <i class="fa-solid fa-money-bill-wave"></i> كاش
+                                    </button>
+                                    <button type="button" onclick="selectPaymentMethod('فيزا (Card)')" data-pay="فيزا (Card)" class="pay-btn bg-white text-slate-700 py-1.5 rounded-xl text-xs font-bold border border-slate-300">
+                                        <i class="fa-solid fa-credit-card"></i> فيزا
+                                    </button>
+                                    <button type="button" onclick="selectPaymentMethod('إنستاباي / محفظة')" data-pay="إنستاباي / محفظة" class="pay-btn bg-white text-slate-700 py-1.5 rounded-xl text-xs font-bold border border-slate-300">
+                                        <i class="fa-solid fa-mobile-screen"></i> محفظة/Insta
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Totals & Cash Change Calculator -->
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 space-y-1.5 text-sm">
+                                <div class="flex justify-between text-slate-500 text-xs">
+                                    <span>المجموع الفرعي (<span id="cart-total-qty">0</span> قطعة):</span>
+                                    <span id="cart-subtotal">0 ج.م</span>
+                                </div>
+                                <div class="flex justify-between text-emerald-600 text-xs">
+                                    <span>الخصم:</span>
+                                    <span id="cart-discount-display">- 0 ج.م</span>
+                                </div>
+                                <div class="flex justify-between font-extrabold text-base text-slate-900 pt-1 border-t">
+                                    <span>الإجمالي المطلوب:</span>
+                                    <span id="cart-grand-total" class="text-indigo-600">0 ج.م</span>
+                                </div>
+                                <div id="cash-change-box" class="pt-2 border-t border-dashed border-slate-200 space-y-1.5">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label for="pos-cash-received" class="text-[11px] font-bold text-slate-600">المبلغ المدفوع من العميل:</label>
+                                        <input type="number" id="pos-cash-received" min="0" placeholder="0" oninput="renderCart()" class="w-28 px-2.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-extrabold text-slate-800 text-left focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs font-extrabold">
+                                        <span class="text-slate-600">الباقي للعميل:</span>
+                                        <span id="pos-cash-change" class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700">0 ج.م</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Checkout & WhatsApp Buttons -->
+                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                                <button onclick="completeSale()" class="sm:col-span-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2 text-xs sm:text-sm">
+                                    <i class="fa-solid fa-print"></i> إتمام البيع وطباعة الفاتورة
+                                </button>
+                                <button type="button" onclick="sendDraftCartToWhatsApp()" title="إرسال تفاصيل الفاتورة عبر واتساب" class="bg-[#25D366] hover:bg-[#1ebe5d] text-white font-extrabold py-3 px-3 rounded-xl shadow transition flex items-center justify-center gap-1.5 text-xs">
+                                    <i class="fa-brands fa-whatsapp text-base"></i> <span>واتساب</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- 3. WAREHOUSE & INVENTORY VIEW                                         -->
+        <!-- ===================================================================== -->
+        <section id="view-warehouse" class="hidden space-y-6">
+            <!-- Warehouse Sub-navigation -->
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="switchWarehouseTab('stock-list')" id="wh-tab-stock-list" class="wh-tab-btn bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fa-solid fa-shirt ml-1"></i> كتالوج المنتجات والباركود
+                    </button>
+                    <button onclick="switchWarehouseTab('add-product')" id="wh-tab-add-product" class="wh-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fa-solid fa-plus-circle ml-1"></i> إضافة موديل جديد (مقاسات/ألوان)
+                    </button>
+                    <button onclick="switchWarehouseTab('transfer')" id="wh-tab-transfer" class="wh-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fa-solid fa-truck-fast ml-1"></i> تحويل بضاعة بين الفروع
+                    </button>
+                    <button onclick="switchWarehouseTab('stocktake')" id="wh-tab-stocktake" class="wh-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fa-solid fa-clipboard-check ml-1"></i> الجرد السريع وتعديل الأرصدة
+                    </button>
+                    <button onclick="switchWarehouseTab('low-stock')" id="wh-tab-low-stock" class="wh-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-bell text-rose-600"></i> تنبيهات النواقص <span id="wh-low-stock-badge" class="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+                    </button>
+                    <button onclick="switchWarehouseTab('batch-barcode')" id="wh-tab-batch-barcode" class="wh-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fa-solid fa-print ml-1"></i> طباعة باركود مجمّع للموديل
+                    </button>
+                    <button onclick="switchWarehouseTab('stock-card')" id="wh-tab-stock-card" class="wh-tab-btn bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold">
+                        <i class="fa-solid fa-timeline ml-1"></i> سجل حركة الصنف
+                    </button>
+                </div>
+                <div class="text-xs text-slate-500 font-bold">
+                    الموقع النشط: <span class="text-indigo-600" id="wh-active-branch-name">المخزن الرئيسي</span>
+                </div>
+            </div>
+
+            <!-- TAB 1: Stock List & Barcode Printing -->
+            <div id="wh-content-stock-list" class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h3 class="font-bold text-slate-800">أرصدة الموديلات والمقاسات وطباعة الباركود</h3>
+                    <input type="text" id="wh-search" onkeyup="renderWarehouseStock()" placeholder="بحث بالكود، الباركود، أو اسم الموديل..." class="px-3 py-2 border border-slate-300 rounded-xl text-xs w-64">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs sm:text-sm">
+                        <thead class="bg-slate-50 text-slate-600 border-b">
+                            <tr>
+                                <th class="py-3 px-3">الباركود</th>
+                                <th class="py-3 px-3">اسم الموديل</th>
+                                <th class="py-3 px-3">التصنيف</th>
+                                <th class="py-3 px-3">المقاس / اللون</th>
+                                <th class="py-3 px-3">التكلفة</th>
+                                <th class="py-3 px-3">سعر البيع</th>
+                                <th class="py-3 px-3">رصيد الفرع الحالي</th>
+                                <th class="py-3 px-3">إجمالي السلسلة</th>
+                                <th class="py-3 px-3">ملصق الباركود</th>
+                                <th class="py-3 px-3">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="wh-stock-table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: Add New Clothing Model with Size & Color Matrix -->
+            <div id="wh-content-add-product" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 max-w-3xl mx-auto">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-tags text-indigo-600"></i> تكويد موديل ملابس جديد وتوليد الباركود تلقائياً
+                </h3>
+                <form onsubmit="handleAddNewProduct(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">اسم الموديل *</label>
+                            <input type="text" id="new-prod-name" required placeholder="مثال: سويت شيرت قطن أوفر سايز" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">التصنيف *</label>
+                            <select id="new-prod-category" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                                <option value="رجالي">رجالي</option>
+                                <option value="حريمي">حريمي</option>
+                                <option value="أطفالي">أطفالي</option>
+                                <option value="أحذية">أحذية وإكسسوار</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">سعر التكلفة (ج.م) *</label>
+                            <input type="number" id="new-prod-cost" required min="1" placeholder="250" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">سعر البيع للجمهور (ج.م) *</label>
+                            <input type="number" id="new-prod-price" required min="1" placeholder="450" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm">
+                        </div>
+                    </div>
+
+                    <!-- Product Image Upload from Device -->
+                    <div class="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100">
+                        <label class="block text-xs font-bold text-slate-700 mb-2">
+                            <i class="fa-solid fa-image text-indigo-600 ml-1"></i> صورة المنتج من الجهاز (اختياري)
+                        </label>
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                            <input type="file" id="new-prod-image-file" accept="image/*" onchange="handleNewProductImageFile(event)" class="block w-full text-xs text-slate-600 file:mr-0 file:ml-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer bg-white border border-slate-300 rounded-xl">
+                            <div id="new-prod-image-preview-wrap" class="hidden shrink-0 flex items-center gap-2 bg-white p-1.5 rounded-xl border border-slate-200">
+                                <img id="new-prod-image-preview" src="" alt="معاينة المنتج" class="w-14 h-14 object-cover rounded-lg border border-slate-200">
+                                <button type="button" onclick="clearNewProductImage()" title="إزالة الصورة" class="text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-lg text-xs font-bold">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-1.5">يمكنك اختيار صورة من الموبايل أو الكمبيوتر وسيتم ضغطها تلقائياً لتناسب التخزين وتظهر في الكاشير والمخزن.</p>
+                    </div>
+
+                    <!-- Size & Color Matrix Selection -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-2">اختر المقاسات المتاحة للموديل:</label>
+                            <div class="flex flex-wrap gap-2" id="matrix-sizes">
+                                <label class="cursor-pointer"><input type="checkbox" value="S" checked class="ml-1"> S</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="M" checked class="ml-1"> M</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="L" checked class="ml-1"> L</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="XL" checked class="ml-1"> XL</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="XXL" class="ml-1"> XXL</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-2">اختر الألوان المتاحة:</label>
+                            <div class="flex flex-wrap gap-3" id="matrix-colors">
+                                <label class="cursor-pointer"><input type="checkbox" value="أسود" checked class="ml-1"> أسود</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="أبيض" checked class="ml-1"> أبيض</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="كحلي" class="ml-1"> كحلي</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="بيج" class="ml-1"> بيج</label>
+                                <label class="cursor-pointer"><input type="checkbox" value="زيتي" class="ml-1"> زيتي</label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">الكمية الافتتاحية لكل مقاس/لون:</label>
+                                <input type="number" id="new-prod-init-qty" value="10" min="1" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">إضافة الرصيد إلى:</label>
+                                <select id="new-prod-target-branch" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm bg-white"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow transition">
+                        <i class="fa-solid fa-barcode ml-1"></i> حفظ الموديل وتوليد الباركود لجميع المقاسات
+                    </button>
+                </form>
+            </div>
+
+            <!-- TAB 3: Stock Transfer Between Branches -->
+            <div id="wh-content-transfer" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-right-left text-indigo-600"></i> إذن تحويل بضاعة بين الفروع والمخازن
+                    </h3>
+                    <form onsubmit="handleStockTransfer(event)" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">من (المصدر)</label>
+                                <select id="transfer-from" onchange="updateTransferProductOptions()" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"></select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">إلى (المستلم)</label>
+                                <select id="transfer-to" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">اختر الصنف والمقاس واللون</label>
+                            <select id="transfer-variant" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">الكمية المحولة</label>
+                            <input type="number" id="transfer-qty" min="1" value="5" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-sm">
+                            تنفيذ التحويل وتحديث الأرصدة فوراً
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Transfer History Log -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-800 mb-4">سجل حركات التحويل الأخيرة</h3>
+                    <div id="transfer-history-list" class="space-y-2.5 max-h-80 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Stocktake (Inventory Audit) -->
+            <div id="wh-content-stocktake" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800">الجرد الفعلي للفرع: <span id="stocktake-branch-title" class="text-indigo-600"></span></h3>
+                        <p class="text-xs text-slate-500">قم بإدخال العدد الفعلي الموجود على الأرفف لتسوية أي عجز أو زيادة تلقائياً.</p>
